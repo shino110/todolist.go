@@ -90,6 +90,40 @@ func RegisterTask(ctx *gin.Context) {
 	ctx.Redirect(http.StatusFound, path)
 }
 
+func UpdateTask(ctx *gin.Context) {
+	// Get task data
+	is_done, exist := ctx.GetPostForm("is_done")
+	if !exist {
+		Error(http.StatusBadRequest, "No title is given")(ctx)
+		return
+	}
+	done_bool, err := strconv.ParseBool(is_done)
+	if err != nil {
+		Error(http.StatusBadRequest, err.Error())(ctx)
+		return
+	}
+	// ID の取得
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		Error(http.StatusBadRequest, err.Error())(ctx)
+		return
+	}
+	// Get DB connection
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	// Update data with given title on DB
+	if _, err := db.Exec("UPDATE tasks SET is_done=? WHERE id=?", done_bool, id); err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	//go back to task page
+	path := fmt.Sprintf("/task/%d", id)
+	ctx.Redirect(http.StatusFound, path)
+}
+
 func EditTaskForm(ctx *gin.Context) {
 	// ID の取得
 	id, err := strconv.Atoi(ctx.Param("id"))
