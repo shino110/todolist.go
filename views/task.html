@@ -10,4 +10,12 @@
 </dl>
 <a href="/list"><button type="button">リストへ戻る</button></a>
 <a href="/task/edit/{{ .ID }}"><button type="button">編集</button></a>
+<a href="/task/delete/{{ .ID }}"><button type="button">削除</button></a>
+<script type="text/javascript">
+    const confirm_delete = (id) => {
+        if(window.confirm(`Task ${id} を削除します．よろしいですか？`)) {
+            location.href = `/task/delete/${id}`;
+        }
+    }
+</script>
 {{ template "footer" }}

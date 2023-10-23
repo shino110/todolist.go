@@ -148,3 +148,32 @@ func EditTaskForm(ctx *gin.Context) {
 	ctx.HTML(http.StatusOK, "form_edit_task.html",
 		gin.H{"Title": fmt.Sprintf("Edit task %d", task.ID), "Task": task})
 }
+
+func DeleteTask(ctx *gin.Context) {
+	// ID の取得
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		Error(http.StatusBadRequest, err.Error())(ctx)
+		return
+	}
+	// Get DB connection
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	var task database.Task
+	err = db.Get(&task, "SELECT * FROM tasks")
+	if err != nil {
+		Error(http.StatusBadRequest, err.Error())(ctx)
+		return
+	}
+	// Delete the task from DB
+	_, err = db.Exec("DELETE FROM tasks WHERE id=?", id)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	// Redirect to /list
+	ctx.Redirect(http.StatusFound, "/list")
+}
