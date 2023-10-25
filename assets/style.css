@@ -1,1 +1,16 @@
 /* placeholder file for CSS */
+table {
+    border-collapse: collapse;
+    background-color: #ffff00;
+}
+
+
+table th{
+    padding: auto;
+    border: solid 5px;
+}
+
+table td {
+    padding: 3px 10px;
+    border: solid 1px;
+}
