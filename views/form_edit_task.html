@@ -4,7 +4,7 @@
     <label>Title</label><input type="text" name="title" value="{{ .Task.Title }}" required>
     <br>
     <label>Memo</label><br>
-    <textarea name="memo" row="2" cols="5" required> </textarea><br>
+    <textarea name="memo" row="2" cols="5"></textarea><br>
     <input type="radio" name="is_done" value="t" {{ if .Task.IsDone }}checked{{ end }}><label>完了</label>
     <input type="radio" name="is_done" value="f" {{ if not .Task.IsDone }}checked{{ end }}><label>未完了</label>
     </br>

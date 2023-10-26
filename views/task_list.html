@@ -18,11 +18,7 @@
         <td>{{ $task.Title }}</td>
         <td>{{ $task.CreatedAt }}</td>
         <td>{{ if $task.IsDone }}済{{ end }}</td>
-        <td>{{ if $task.Memo }}
-                {{ $task.Memo }}
-            {{ else }}
-                &nbsp;
-            {{end}}</td>
+        <td>{{ if $task.Memo.Valid }}{{ $task.Memo.String }}{{ end }}</td>
     </tr>
     {{ end }}
 </table>
