@@ -10,5 +10,6 @@ type Task struct {
 	ID        uint64    `db:"id"`
 	Title     string    `db:"title"`
 	CreatedAt time.Time `db:"created_at"`
+	Memo      string    `db:"memo"`
 	IsDone    bool      `db:"is_done"`
 }
