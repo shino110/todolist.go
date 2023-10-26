@@ -18,9 +18,17 @@ func TaskList(ctx *gin.Context) {
 		return
 	}
 
+	// Get query parameter
+	kw := ctx.Query("kw")
+
 	// Get tasks in DB
 	var tasks []database.Task
-	err = db.Select(&tasks, "SELECT * FROM tasks") // Use DB#Select for multiple entries
+	switch {
+	case kw != "":
+		err = db.Select(&tasks, "SELECT * FROM tasks WHERE title LIKE ?", "%"+kw+"%")
+	default:
+		err = db.Select(&tasks, "SELECT * FROM tasks")
+	}
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
