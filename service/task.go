@@ -20,15 +20,41 @@ func TaskList(ctx *gin.Context) {
 
 	// Get query parameter
 	kw := ctx.Query("kw")
+	is_done := ctx.Query("is_done")
+
+	//set var exist and done_bool like func UpdateTast
+	var exist bool
+	if is_done == "" {
+		exist = false
+	} else {
+		exist = true
+	}
+	var done_bool bool
+	if exist {
+		done_bool, err = strconv.ParseBool(is_done)
+		if err != nil {
+			Error(http.StatusBadRequest, err.Error())(ctx)
+			return
+		}
+	}
 
 	// Get tasks in DB
 	var tasks []database.Task
 	switch {
 	case kw != "":
-		err = db.Select(&tasks, "SELECT * FROM tasks WHERE title LIKE ?", "%"+kw+"%")
+		if exist {
+			err = db.Select(&tasks, "SELECT * FROM tasks WHERE title LIKE ? AND is_done=?", "%"+kw+"%", done_bool)
+		} else {
+			err = db.Select(&tasks, "SELECT * FROM tasks WHERE title LIKE ?", "%"+kw+"%")
+		}
 	default:
-		err = db.Select(&tasks, "SELECT * FROM tasks")
+		if exist {
+			err = db.Select(&tasks, "SELECT * FROM tasks WHERE is_done=?", done_bool)
+		} else {
+			err = db.Select(&tasks, "SELECT * FROM tasks")
+		}
 	}
+
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
@@ -102,7 +128,7 @@ func UpdateTask(ctx *gin.Context) {
 	// Get task data
 	is_done, exist := ctx.GetPostForm("is_done")
 	if !exist {
-		Error(http.StatusBadRequest, "No title is given")(ctx)
+		Error(http.StatusBadRequest, "No situation is given")(ctx)
 		return
 	}
 	done_bool, err := strconv.ParseBool(is_done)
