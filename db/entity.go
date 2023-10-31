@@ -10,6 +10,7 @@ import (
 type Task struct {
 	ID        uint64         `db:"id"`
 	Title     string         `db:"title"`
+	DeadLine  sql.NullTime   `db:"deadline"`
 	CreatedAt time.Time      `db:"created_at"`
 	Memo      sql.NullString `db:"memo"`
 	IsDone    bool           `db:"is_done"`

@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	database "todolist.go/db"
 )
+
+var time_format = "1000-01-01 00:00:00"
 
 // TaskList renders list of tasks in DB
 func TaskList(ctx *gin.Context) {
@@ -21,8 +24,44 @@ func TaskList(ctx *gin.Context) {
 	// Get query parameter
 	kw := ctx.Query("kw")
 	is_done := ctx.Query("is_done")
+	input_start := ctx.Query("deadline-start")
+	input_end := ctx.Query("deadline-end")
+	var deadline_start, deadline_end time.Time
 
-	//set var exist and done_bool like func UpdateTast
+	// putting input string into SQL results in SQL error
+	// below parse intput string to time.Time
+	// datetime in MySQL does nothing with timezone but deal LITERALLY so using UTC
+
+	// min and max value of time in query
+	// min : 1000-01-01T00:00
+	// max : 9999-12-31T23:59
+	var intime_min = time.Date(1000, 1, 1, 0, 0, 0, 0, time.UTC)
+	var intime_max = time.Date(9999, 12, 31, 23, 59, 0, 0, time.UTC)
+
+	//convert input dates string to time.Time
+	if input_start == "" {
+		deadline_start = intime_min
+	} else {
+		deadline_start, err = time.Parse(time_format, input_start) //input type=datetime-local
+		if err != nil {
+			Error(http.StatusInternalServerError, err.Error())(ctx)
+			return
+		}
+	}
+	if input_end == "" {
+		deadline_end = intime_max
+	} else {
+		deadline_end, err = time.Parse(time_format, input_end)
+		if err != nil {
+			Error(http.StatusInternalServerError, err.Error())(ctx)
+			return
+		}
+	}
+	if deadline_start.Before(deadline_end) {
+		Error(http.StatusBadRequest, "Put appropriate datetime")
+	}
+
+	//set var exist and done_bool like func UpdateTask
 	var exist bool
 	if is_done == "" {
 		exist = false
@@ -43,15 +82,24 @@ func TaskList(ctx *gin.Context) {
 	switch {
 	case kw != "":
 		if exist {
-			err = db.Select(&tasks, "SELECT * FROM tasks WHERE title LIKE ? AND is_done=?", "%"+kw+"%", done_bool)
+			err = db.Select(&tasks,
+				"SELECT * FROM tasks WHERE title LIKE ? AND is_done=? AND deadline BETWEEN ? AND ?",
+				"%"+kw+"%", done_bool, deadline_start.Format(time_format), deadline_end.Format(time_format))
 		} else {
-			err = db.Select(&tasks, "SELECT * FROM tasks WHERE title LIKE ?", "%"+kw+"%")
+			err = db.Select(&tasks,
+				"SELECT * FROM tasks WHERE title LIKE ? AND deadline BETWEEN ? AND ?",
+				"%"+kw+"%", deadline_start.Format(time_format), deadline_end.Format(time_format))
 		}
 	default:
 		if exist {
-			err = db.Select(&tasks, "SELECT * FROM tasks WHERE is_done=?", done_bool)
+			err = db.Select(&tasks,
+				"SELECT * FROM tasks WHERE is_done=? AND deadline BETWEEN ? AND ?",
+				done_bool, deadline_start.Format(time_format), deadline_end.Format(time_format))
 		} else {
-			err = db.Select(&tasks, "SELECT * FROM tasks")
+			// err = db.Select(&tasks, "SELECT * FROM tasks")
+			err = db.Select(&tasks,
+				"SELECT * FROM tasks AND deadline BETWEEN ? AND ?",
+				deadline_start.Format(time_format), deadline_end.Format(time_format))
 		}
 	}
 

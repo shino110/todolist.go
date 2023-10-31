@@ -9,6 +9,15 @@
         <option value="t">完了</option>
         <option value="f">未完了</option>
     </select><br>
+    <label>締め切り日時</label>
+    <input
+        type="datetime-local"
+        name="deadline-start"
+        value="1000-01-01T00:00"/> ~
+    <input
+        type="datetime-local"
+        name="deadline-end"
+        value="9999-12-31T23:59"/><br>
     <input type="submit" value="検索">
 </form>
 <p><a href="/task/new">新規登録</a></p>
@@ -18,17 +27,19 @@
 <table>
     <tr>
         <th>ID</th>
-        <th>タイトル</th>
-        <th>登録日</th>
         <th>状態</th>
+        <th>タイトル</th>
+        <th>締め切り日時</th>
+        <th>登録日</th>
         <th>メモ</th>
     </tr>
     {{ range $task := .Tasks }}
     <tr>
         <td><a href="/task/{{ $task.ID }}">{{ $task.ID }}</a></td>
-        <td>{{ $task.Title }}</td>
-        <td>{{ $task.CreatedAt }}</td>
         <td>{{ if $task.IsDone }}済{{ end }}</td>
+        <td>{{ $task.Title }}</td>
+        <td style="font-size : 13px;">{{ if $task.DeadLine.Valid }}{{ $task.DeadLine.Time.Format "Jan 02, 2006 15:04:05 JST"}}{{ end }}</td>
+        <td style="font-size : 13px;">{{ $task.CreatedAt.Format "Jan 02, 2006"}}</td>
         <td>{{ if $task.Memo.Valid }}{{ $task.Memo.String }}{{ end }}</td>
     </tr>
     {{ end }}
