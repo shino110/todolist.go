@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,41 @@ import (
 )
 
 var time_format = "1000-01-01 00:00:00"
+
+// 12000-12-12 00:00:00 <- input_min.Format("1000-01-01 00:00:00")
+// Formatが動いて欲しいように動かない
+func PutTimeinSQLdatetime(tm time.Time) string {
+	year, month, day := tm.Date()
+	return strconv.Itoa(year) + "-" + strconv.Itoa(int(month)) + "-" + strconv.Itoa(day) + " " + strconv.Itoa(tm.Hour()) + ":" + strconv.Itoa(tm.Minute()) + ":" + strconv.Itoa(tm.Second())
+}
+
+// input: YYYY-mm-ddTHH%3AMM   %3A is ":"
+func DateTimeInput2Time(ctx *gin.Context, str string) time.Time {
+	arr1 := strings.Split(str, "-")
+	year, err := strconv.Atoi(arr1[0])
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+	}
+	mon, err := strconv.Atoi(arr1[1])
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+	}
+	arr2 := strings.Split(arr1[2], "T")
+	day, err := strconv.Atoi(arr2[0])
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+	}
+	arr3 := strings.Split(arr2[1], ":")
+	hour, err := strconv.Atoi(arr3[0])
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+	}
+	min, err := strconv.Atoi(arr3[1])
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+	}
+	return time.Date(year, time.Month(mon), day, hour, min, 0, 0, time.UTC)
+}
 
 // TaskList renders list of tasks in DB
 func TaskList(ctx *gin.Context) {
@@ -27,6 +63,7 @@ func TaskList(ctx *gin.Context) {
 	input_start := ctx.Query("deadline-start")
 	input_end := ctx.Query("deadline-end")
 	var deadline_start, deadline_end time.Time
+	datetime_default := false //check if two datetime input is default
 
 	// putting input string into SQL results in SQL error
 	// below parse intput string to time.Time
@@ -42,24 +79,23 @@ func TaskList(ctx *gin.Context) {
 	if input_start == "" {
 		deadline_start = intime_min
 	} else {
-		deadline_start, err = time.Parse(time_format, input_start) //input type=datetime-local
-		if err != nil {
-			Error(http.StatusInternalServerError, err.Error())(ctx)
-			return
-		}
+		deadline_start = DateTimeInput2Time(ctx, input_start)
 	}
 	if input_end == "" {
 		deadline_end = intime_max
-	} else {
-		deadline_end, err = time.Parse(time_format, input_end)
-		if err != nil {
-			Error(http.StatusInternalServerError, err.Error())(ctx)
-			return
+		if input_start == "" {
+			datetime_default = true
 		}
+	} else {
+		deadline_end = DateTimeInput2Time(ctx, input_end)
 	}
 	if deadline_start.Before(deadline_end) {
 		Error(http.StatusBadRequest, "Put appropriate datetime")
 	}
+	// log.Printf(deadline_start.GoString())
+	// log.Printf(PutTimeinSQLdatetime(deadline_start))
+	// log.Printf(deadline_end.GoString())
+	// log.Printf(PutTimeinSQLdatetime(deadline_end))
 
 	//set var exist and done_bool like func UpdateTask
 	var exist bool
@@ -79,27 +115,28 @@ func TaskList(ctx *gin.Context) {
 
 	// Get tasks in DB
 	var tasks []database.Task
+	var conditions [3]string
 	switch {
 	case kw != "":
 		if exist {
 			err = db.Select(&tasks,
 				"SELECT * FROM tasks WHERE title LIKE ? AND is_done=? AND deadline BETWEEN ? AND ?",
-				"%"+kw+"%", done_bool, deadline_start.Format(time_format), deadline_end.Format(time_format))
+				"%"+kw+"%", done_bool, PutTimeinSQLdatetime(deadline_start), PutTimeinSQLdatetime(deadline_end))
 		} else {
 			err = db.Select(&tasks,
 				"SELECT * FROM tasks WHERE title LIKE ? AND deadline BETWEEN ? AND ?",
-				"%"+kw+"%", deadline_start.Format(time_format), deadline_end.Format(time_format))
+				"%"+kw+"%", PutTimeinSQLdatetime(deadline_start), PutTimeinSQLdatetime(deadline_end))
 		}
 	default:
 		if exist {
 			err = db.Select(&tasks,
 				"SELECT * FROM tasks WHERE is_done=? AND deadline BETWEEN ? AND ?",
-				done_bool, deadline_start.Format(time_format), deadline_end.Format(time_format))
+				done_bool, PutTimeinSQLdatetime(deadline_start), PutTimeinSQLdatetime(deadline_end))
 		} else {
 			// err = db.Select(&tasks, "SELECT * FROM tasks")
 			err = db.Select(&tasks,
-				"SELECT * FROM tasks AND deadline BETWEEN ? AND ?",
-				deadline_start.Format(time_format), deadline_end.Format(time_format))
+				"SELECT * FROM tasks WHERE deadline BETWEEN ? AND ?",
+				PutTimeinSQLdatetime(deadline_start), PutTimeinSQLdatetime(deadline_end))
 		}
 	}
 
