@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,13 +12,11 @@ import (
 	database "todolist.go/db"
 )
 
-var time_format = "1000-01-01 00:00:00"
-
 // 12000-12-12 00:00:00 <- input_min.Format("1000-01-01 00:00:00")
 // Formatが動いて欲しいように動かない
 func PutTimeinSQLdatetime(tm time.Time) string {
 	year, month, day := tm.Date()
-	return strconv.Itoa(year) + "-" + strconv.Itoa(int(month)) + "-" + strconv.Itoa(day) + " " + strconv.Itoa(tm.Hour()) + ":" + strconv.Itoa(tm.Minute()) + ":" + strconv.Itoa(tm.Second())
+	return fmt.Sprintf("%04d", year) + "-" + fmt.Sprintf("%02d", int(month)) + "-" + fmt.Sprintf("%02d", day) + " " + fmt.Sprintf("%02d", tm.Hour()) + ":" + fmt.Sprintf("%02d", tm.Minute()) + ":" + fmt.Sprintf("%02d", tm.Second())
 }
 
 // input: YYYY-mm-ddTHH%3AMM   %3A is ":"
@@ -69,20 +68,11 @@ func TaskList(ctx *gin.Context) {
 	// below parse intput string to time.Time
 	// datetime in MySQL does nothing with timezone but deal LITERALLY so using UTC
 
-	// min and max value of time in query
-	// min : 1000-01-01T00:00
-	// max : 9999-12-31T23:59
-	var intime_min = time.Date(1000, 1, 1, 0, 0, 0, 0, time.UTC)
-	var intime_max = time.Date(9999, 12, 31, 23, 59, 0, 0, time.UTC)
-
 	//convert input dates string to time.Time
-	if input_start == "" {
-		deadline_start = intime_min
-	} else {
+	if input_start != "" {
 		deadline_start = DateTimeInput2Time(ctx, input_start)
 	}
 	if input_end == "" {
-		deadline_end = intime_max
 		if input_start == "" {
 			datetime_default = true
 		}
@@ -92,20 +82,14 @@ func TaskList(ctx *gin.Context) {
 	if deadline_start.Before(deadline_end) {
 		Error(http.StatusBadRequest, "Put appropriate datetime")
 	}
-	// log.Printf(deadline_start.GoString())
-	// log.Printf(PutTimeinSQLdatetime(deadline_start))
-	// log.Printf(deadline_end.GoString())
-	// log.Printf(PutTimeinSQLdatetime(deadline_end))
 
-	//set var exist and done_bool like func UpdateTask
-	var exist bool
+	//set var done_selected and done_bool like func UpdateTask
+	done_selected := true
 	if is_done == "" {
-		exist = false
-	} else {
-		exist = true
+		done_selected = false
 	}
 	var done_bool bool
-	if exist {
+	if done_selected {
 		done_bool, err = strconv.ParseBool(is_done)
 		if err != nil {
 			Error(http.StatusBadRequest, err.Error())(ctx)
@@ -113,38 +97,53 @@ func TaskList(ctx *gin.Context) {
 		}
 	}
 
+	// //make arrays of conditions
+	var conditions []string
+	if kw != "" {
+		cond := fmt.Sprintf("title LIKE %%%s%%", kw)
+		// cond = "title LIKE %" + kw + "%"
+		// cond := "title LIKE %"
+		// cond += kw
+		// cond += "%"
+		// con := []string{"titile LIKE %", kw, "%"}
+		// cond := strings.Join(con, "")
+		// cond := bytes.NewBufferString("title LIKE %")
+		// cond.Write([]byte(kw))
+		// cond.Write([]byte("%"))
+		log.Printf(kw)
+		log.Printf(cond) //title LIKE % と表示される
+		// conditions = append(conditions, strings.Join(cond, ""))
+	}
+	if done_selected {
+		conditions = append(conditions, "is_done="+strconv.FormatBool(done_bool))
+	}
+	if !datetime_default {
+		conditions = append(conditions,
+			"deadline BETWEEN '"+PutTimeinSQLdatetime(deadline_start)+"' AND '"+PutTimeinSQLdatetime(deadline_end)+"'")
+	}
+
+	// var query string
+	query := "WHERE "
+	if len(conditions) > 0 {
+		for i := 0; i < len(conditions)-1; i++ {
+			query = query + conditions[i] + " AND "
+		}
+		query = query + conditions[len(conditions)-1]
+	}
+	log.Printf(query)
+
 	// Get tasks in DB
 	var tasks []database.Task
-	var conditions [3]string
-	switch {
-	case kw != "":
-		if exist {
-			err = db.Select(&tasks,
-				"SELECT * FROM tasks WHERE title LIKE ? AND is_done=? AND deadline BETWEEN ? AND ?",
-				"%"+kw+"%", done_bool, PutTimeinSQLdatetime(deadline_start), PutTimeinSQLdatetime(deadline_end))
-		} else {
-			err = db.Select(&tasks,
-				"SELECT * FROM tasks WHERE title LIKE ? AND deadline BETWEEN ? AND ?",
-				"%"+kw+"%", PutTimeinSQLdatetime(deadline_start), PutTimeinSQLdatetime(deadline_end))
-		}
-	default:
-		if exist {
-			err = db.Select(&tasks,
-				"SELECT * FROM tasks WHERE is_done=? AND deadline BETWEEN ? AND ?",
-				done_bool, PutTimeinSQLdatetime(deadline_start), PutTimeinSQLdatetime(deadline_end))
-		} else {
-			// err = db.Select(&tasks, "SELECT * FROM tasks")
-			err = db.Select(&tasks,
-				"SELECT * FROM tasks WHERE deadline BETWEEN ? AND ?",
-				PutTimeinSQLdatetime(deadline_start), PutTimeinSQLdatetime(deadline_end))
-		}
+	if len(conditions) > 0 {
+		err = db.Select(&tasks, "SELECT * FROM tasks "+query)
+	} else {
+		err = db.Select(&tasks, "SELECT * FROM tasks")
 	}
 
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
-
 	// Render tasks
 	ctx.HTML(http.StatusOK, "task_list.html", gin.H{"Title": "Task list", "Tasks": tasks})
 }
@@ -184,8 +183,8 @@ func NewTaskForm(ctx *gin.Context) {
 
 func RegisterTask(ctx *gin.Context) {
 	// Get task title
-	title, exist := ctx.GetPostForm("title")
-	if !exist {
+	title, done_selected := ctx.GetPostForm("title")
+	if !done_selected {
 		Error(http.StatusBadRequest, "No title is given")(ctx)
 		return
 	}
@@ -211,8 +210,8 @@ func RegisterTask(ctx *gin.Context) {
 
 func UpdateTask(ctx *gin.Context) {
 	// Get task data
-	is_done, exist := ctx.GetPostForm("is_done")
-	if !exist {
+	is_done, done_selected := ctx.GetPostForm("is_done")
+	if !done_selected {
 		Error(http.StatusBadRequest, "No situation is given")(ctx)
 		return
 	}
