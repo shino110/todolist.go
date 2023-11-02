@@ -24,11 +24,18 @@ func RegisterUser(ctx *gin.Context) {
 	// フォームデータの受け取り
 	username := ctx.PostForm("username")
 	password := ctx.PostForm("password")
+	password_confirm := ctx.PostForm("password_confirm")
 	switch {
 	case username == "":
 		ctx.HTML(http.StatusBadRequest, "new_user_form.html", gin.H{"Title": "Register user", "Error": "Usernane is not provided", "Username": username})
-	case password == "":
+		return
+	case password == "" || password_confirm == "":
 		ctx.HTML(http.StatusBadRequest, "new_user_form.html", gin.H{"Title": "Register user", "Error": "Password is not provided", "Password": password})
+		return
+	}
+	if password != password_confirm {
+		ctx.HTML(http.StatusBadRequest, "new_user_form.html", gin.H{"Title": "Register user", "Error": "Password does not match", "Password": password})
+		return
 	}
 
 	// DB 接続
