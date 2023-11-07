@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	database "todolist.go/db"
 )
@@ -49,6 +50,8 @@ func DateTimeInput2Time(ctx *gin.Context, str string) time.Time {
 
 // TaskList renders list of tasks in DB
 func TaskList(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get("user")
+
 	// Get DB connection
 	db, err := database.GetConnection()
 	if err != nil {
@@ -110,8 +113,8 @@ func TaskList(ctx *gin.Context) {
 		// cond := bytes.NewBufferString("title LIKE %")
 		// cond.Write([]byte(kw))
 		// cond.Write([]byte("%"))
-		log.Printf(kw)
-		log.Printf(cond) //title LIKE % と表示される
+		log.Println(kw)
+		log.Println(cond) //title LIKE % と表示される
 		// conditions = append(conditions, strings.Join(cond, ""))
 	}
 	if done_selected {
@@ -135,9 +138,9 @@ func TaskList(ctx *gin.Context) {
 	// Get tasks in DB
 	var tasks []database.Task
 	if len(conditions) > 0 {
-		err = db.Select(&tasks, "SELECT * FROM tasks "+query)
+		err = db.Select(&tasks, "SELECT * FROM tasks "+query+"INNER JOIN ownership ON task_id = id WHERE user_id = ?", userID)
 	} else {
-		err = db.Select(&tasks, "SELECT * FROM tasks")
+		err = db.Select(&tasks, "SELECT * FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ?", userID)
 	}
 
 	if err != nil {
