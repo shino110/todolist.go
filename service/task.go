@@ -102,21 +102,6 @@ func TaskList(ctx *gin.Context) {
 
 	// //make arrays of conditions
 	var conditions []string
-	if kw != "" {
-		cond := fmt.Sprintf("title LIKE %%%s%%", kw)
-		// cond = "title LIKE %" + kw + "%"
-		// cond := "title LIKE %"
-		// cond += kw
-		// cond += "%"
-		// con := []string{"titile LIKE %", kw, "%"}
-		// cond := strings.Join(con, "")
-		// cond := bytes.NewBufferString("title LIKE %")
-		// cond.Write([]byte(kw))
-		// cond.Write([]byte("%"))
-		log.Println(kw)
-		log.Println(cond) //title LIKE % と表示される
-		// conditions = append(conditions, strings.Join(cond, ""))
-	}
 	if done_selected {
 		conditions = append(conditions, "is_done="+strconv.FormatBool(done_bool))
 	}
@@ -137,10 +122,17 @@ func TaskList(ctx *gin.Context) {
 
 	// Get tasks in DB
 	var tasks []database.Task
-	if len(conditions) > 0 {
-		err = db.Select(&tasks, "SELECT * FROM tasks "+query+"INNER JOIN ownership ON task_id = id WHERE user_id = ?", userID)
+	if len(conditions) > 0 && kw != "" {
+		err = db.Select(&tasks,
+			"SELECT * FROM tasks "+query+" AND title LIKE ? INNER JOIN ownership ON task_id = id WHERE user_id = ?",
+			"%"+kw+"%", userID)
+	} else if kw != "" {
+		err = db.Select(&tasks,
+			"SELECT * FROM tasks WHERE title LIKE ? INNER JOIN ownership ON task_id = id WHERE user_id = ?",
+			"%"+kw+"%", userID)
 	} else {
-		err = db.Select(&tasks, "SELECT * FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ?", userID)
+		err = db.Select(&tasks,
+			"SELECT * FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ?", userID)
 	}
 
 	if err != nil {
@@ -185,6 +177,7 @@ func NewTaskForm(ctx *gin.Context) {
 }
 
 func RegisterTask(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get("user")
 	// Get task title
 	title, done_selected := ctx.GetPostForm("title")
 	if !done_selected {
@@ -198,17 +191,28 @@ func RegisterTask(ctx *gin.Context) {
 		return
 	}
 	// Create new data with given title on DB
-	result, err := db.Exec("INSERT INTO tasks (title) VALUES (?)", title)
+	tx := db.MustBegin()
+	result, err := tx.Exec("INSERT INTO tasks (title) VALUES (?)", title)
 	if err != nil {
+		tx.Rollback()
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
 	// Render status
-	path := "/list" // デフォルトではタスク一覧ページへ戻る
-	if id, err := result.LastInsertId(); err == nil {
-		path = fmt.Sprintf("/task/%d", id) // 正常にIDを取得できた場合は /task/<id> へ戻る
+	taskID, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
 	}
-	ctx.Redirect(http.StatusFound, path)
+	_, err = tx.Exec("INSERT INTO ownership (user_id, task_id) VALUES (?, ?)", userID, taskID)
+	if err != nil {
+		tx.Rollback()
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	tx.Commit()
+	ctx.Redirect(http.StatusFound, fmt.Sprintf("/task/%d", taskID))
 }
 
 func UpdateTask(ctx *gin.Context) {
