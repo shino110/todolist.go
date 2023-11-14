@@ -6,6 +6,13 @@
     <title>{{ .Title }} | todolist.go</title>
     <link rel="stylesheet" href="/assets/style.css">
     <script type="text/javascript" src="/assets/script.js"></script>
+    <ul class="nav navbar-nav navbar-right">
+        {{if .SessionInfo.IsSessionAlive}}
+        <li><a href="/logout">ログアウト</a></li>
+        {{else}}
+        <li><a href="/login">ログイン</a></li>
+        {{end}}
+    </ul>
 </head>
 <body>
 {{ end }}

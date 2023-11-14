@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -110,6 +111,10 @@ func Login(ctx *gin.Context) {
 	ctx.Redirect(http.StatusFound, "/list")
 }
 
+func LoginForm(ctx *gin.Context) {
+	ctx.HTML(http.StatusOK, "login.html", gin.H{"Title": "Task registration"})
+}
+
 func LoginCheck(ctx *gin.Context) {
 	if sessions.Default(ctx).Get(userkey) == nil {
 		ctx.Redirect(http.StatusFound, "/login")
@@ -125,4 +130,23 @@ func Logout(ctx *gin.Context) {
 	session.Options(sessions.Options{MaxAge: -1})
 	session.Save()
 	ctx.Redirect(http.StatusFound, "/")
+}
+
+func LogoutForm(ctx *gin.Context) {
+	ctx.HTML(http.StatusOK, "logout.html", gin.H{"Title": "Task registration"})
+}
+
+func CorrectUserCheck(ctx *gin.Context) {
+	// ID の取得
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		Error(http.StatusBadRequest, err.Error())(ctx)
+		return
+	}
+	if sessions.Default(ctx).Get(userkey) != id {
+		ctx.Redirect(http.StatusFound, "/login")
+		ctx.Abort()
+	} else {
+		ctx.Next()
+	}
 }

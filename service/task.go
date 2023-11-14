@@ -122,17 +122,13 @@ func TaskList(ctx *gin.Context) {
 
 	// Get tasks in DB
 	var tasks []database.Task
+	base_query := "SELECT id, title, created_at, is_done FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ?"
 	if len(conditions) > 0 && kw != "" {
-		err = db.Select(&tasks,
-			"SELECT * FROM tasks "+query+" AND title LIKE ? INNER JOIN ownership ON task_id = id WHERE user_id = ?",
-			"%"+kw+"%", userID)
+		err = db.Select(&tasks, base_query+query+" AND title LIKE ? ", userID, "%"+kw+"%")
 	} else if kw != "" {
-		err = db.Select(&tasks,
-			"SELECT * FROM tasks WHERE title LIKE ? INNER JOIN ownership ON task_id = id WHERE user_id = ?",
-			"%"+kw+"%", userID)
+		err = db.Select(&tasks, base_query+" WHERE title LIKE ? ", userID, "%"+kw+"%")
 	} else {
-		err = db.Select(&tasks,
-			"SELECT * FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ?", userID)
+		err = db.Select(&tasks, base_query, userID)
 	}
 
 	if err != nil {
