@@ -11,6 +11,11 @@ import (
 	database "todolist.go/db"
 )
 
+type SessionInfo struct {
+	UserName string
+	IsAlive  bool
+}
+
 func NewUserForm(ctx *gin.Context) {
 	ctx.HTML(http.StatusOK, "new_user_form.html", gin.H{"Title": "Register user"})
 }
@@ -108,7 +113,8 @@ func Login(ctx *gin.Context) {
 	session.Set(userkey, user.ID)
 	session.Save()
 
-	ctx.Redirect(http.StatusFound, "/list")
+	info := SessionInfo{username, true}
+	ctx.HTML(http.StatusFound, "task_list.html", gin.H{"SessionInfo": info})
 }
 
 func LoginForm(ctx *gin.Context) {

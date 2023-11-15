@@ -51,6 +51,7 @@ func DateTimeInput2Time(ctx *gin.Context, str string) time.Time {
 // TaskList renders list of tasks in DB
 func TaskList(ctx *gin.Context) {
 	userID := sessions.Default(ctx).Get("user")
+	info := ctx.Param("SessionInfo")
 
 	// Get DB connection
 	db, err := database.GetConnection()
@@ -118,7 +119,6 @@ func TaskList(ctx *gin.Context) {
 		}
 		query = query + conditions[len(conditions)-1]
 	}
-	log.Printf(query)
 
 	// Get tasks in DB
 	var tasks []database.Task
@@ -136,11 +136,14 @@ func TaskList(ctx *gin.Context) {
 		return
 	}
 	// Render tasks
-	ctx.HTML(http.StatusOK, "task_list.html", gin.H{"Title": "Task list", "Tasks": tasks})
+	ctx.HTML(http.StatusOK, "task_list.html", gin.H{"Title": "Task list", "SessionInfo": info, "Tasks": tasks})
 }
 
 // ShowTask renders a task with given ID
 func ShowTask(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get("user")
+	info := ctx.Param("SessionInfo")
+
 	// Get DB connection
 	db, err := database.GetConnection()
 	if err != nil {
@@ -148,32 +151,28 @@ func ShowTask(ctx *gin.Context) {
 		return
 	}
 
-	// parse ID given as a parameter
-	id, err := strconv.Atoi(ctx.Param("id"))
-	if err != nil {
-		Error(http.StatusBadRequest, err.Error())(ctx)
-		return
-	}
-
 	// Get a task with given ID
 	var task database.Task
-	err = db.Get(&task, "SELECT * FROM tasks WHERE id=?", id) // Use DB#Get for one entry
+	base_query := "SELECT id, title, created_at, is_done FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ?"
+	err = db.Get(&task, base_query, userID) // Use DB#Get for one entry
 	if err != nil {
 		Error(http.StatusBadRequest, err.Error())(ctx)
 		return
 	}
 
 	// Render task
-	//ctx.String(http.StatusOK, task.Title)  // Modify it!!
-	ctx.HTML(http.StatusOK, "task.html", task)
+	ctx.HTML(http.StatusOK, "task.html", gin.H{"SessionInfo": info, "Tasks": task})
 }
 
 func NewTaskForm(ctx *gin.Context) {
-	ctx.HTML(http.StatusOK, "form_new_task.html", gin.H{"Title": "Task registration"})
+	info := ctx.Param("SessionInfo")
+	log.Println(info)
+	ctx.HTML(http.StatusOK, "form_new_task.html", gin.H{"SessionInfo": info, "Title": "Task registration"})
 }
 
 func RegisterTask(ctx *gin.Context) {
 	userID := sessions.Default(ctx).Get("user")
+
 	// Get task title
 	title, done_selected := ctx.GetPostForm("title")
 	if !done_selected {
@@ -246,6 +245,7 @@ func UpdateTask(ctx *gin.Context) {
 }
 
 func EditTaskForm(ctx *gin.Context) {
+	info := ctx.Param("SessionInfo")
 	// ID の取得
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -267,7 +267,7 @@ func EditTaskForm(ctx *gin.Context) {
 	}
 	// Render edit form
 	ctx.HTML(http.StatusOK, "form_edit_task.html",
-		gin.H{"Title": fmt.Sprintf("Edit task %d", task.ID), "Task": task})
+		gin.H{"SessionInfo": info, "Title": fmt.Sprintf("Edit task %d", task.ID), "Task": task})
 }
 
 func DeleteTask(ctx *gin.Context) {
