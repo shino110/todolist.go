@@ -9,8 +9,8 @@
 </head>
 <body>
     <p style="text-align:right">
-        {{if .SessionInfo.IsAlive}}
-        {{ .SessionInfo.UserName}}<a href="/logout"><button type="button">ログアウト</button></a></li>
+        {{if .LoggedIn}}
+        {{ .UserName}}<a href="/logout"><button type="button">ログアウト</button></a></li>
         {{else}}
         <a href="/login"><button type="button">ログイン</button></a></li>
         {{end}}

@@ -11,11 +11,6 @@ import (
 	database "todolist.go/db"
 )
 
-type SessionInfo struct {
-	UserName string
-	IsAlive  bool
-}
-
 func NewUserForm(ctx *gin.Context) {
 	ctx.HTML(http.StatusOK, "new_user_form.html", gin.H{"Title": "Register user"})
 }
@@ -113,8 +108,7 @@ func Login(ctx *gin.Context) {
 	session.Set(userkey, user.ID)
 	session.Save()
 
-	info := SessionInfo{username, true}
-	ctx.HTML(http.StatusFound, "task_list.html", gin.H{"SessionInfo": info})
+	ctx.Redirect(http.StatusFound, "/list")
 }
 
 func LoginForm(ctx *gin.Context) {
@@ -149,7 +143,24 @@ func CorrectUserCheck(ctx *gin.Context) {
 		Error(http.StatusBadRequest, err.Error())(ctx)
 		return
 	}
-	if sessions.Default(ctx).Get(userkey) != id {
+	userid := sessions.Default(ctx).Get(userkey)
+
+	// Get DB connection
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+
+	// Get tasks in DB
+	var owner []database.Owner
+	err = db.Select(&owner, "SELECT * FROM ownership WHERE user_id = ? AND task_id = ? ", userid, id)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+
+	if owner == nil {
 		ctx.Redirect(http.StatusFound, "/login")
 		ctx.Abort()
 	} else {

@@ -51,7 +51,7 @@ func DateTimeInput2Time(ctx *gin.Context, str string) time.Time {
 // TaskList renders list of tasks in DB
 func TaskList(ctx *gin.Context) {
 	userID := sessions.Default(ctx).Get("user")
-	info := ctx.Param("SessionInfo")
+	username := ctx.Query("UserName")
 
 	// Get DB connection
 	db, err := database.GetConnection()
@@ -112,7 +112,7 @@ func TaskList(ctx *gin.Context) {
 	}
 
 	// var query string
-	query := "WHERE "
+	var query string
 	if len(conditions) > 0 {
 		for i := 0; i < len(conditions)-1; i++ {
 			query = query + conditions[i] + " AND "
@@ -122,11 +122,11 @@ func TaskList(ctx *gin.Context) {
 
 	// Get tasks in DB
 	var tasks []database.Task
-	base_query := "SELECT id, title, created_at, is_done FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ?"
+	base_query := "SELECT id, title, deadline, created_at, is_done, memo FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ? "
 	if len(conditions) > 0 && kw != "" {
-		err = db.Select(&tasks, base_query+query+" AND title LIKE ? ", userID, "%"+kw+"%")
+		err = db.Select(&tasks, base_query+" AND "+query+" AND title LIKE ? ", userID, "%"+kw+"%")
 	} else if kw != "" {
-		err = db.Select(&tasks, base_query+" WHERE title LIKE ? ", userID, "%"+kw+"%")
+		err = db.Select(&tasks, base_query+" AND title LIKE ? ", userID, "%"+kw+"%")
 	} else {
 		err = db.Select(&tasks, base_query, userID)
 	}
@@ -136,13 +136,20 @@ func TaskList(ctx *gin.Context) {
 		return
 	}
 	// Render tasks
-	ctx.HTML(http.StatusOK, "task_list.html", gin.H{"Title": "Task list", "SessionInfo": info, "Tasks": tasks})
+	ctx.HTML(http.StatusOK, "task_list.html", gin.H{"Title": "Task list", "LoggedIn": true, "UserName": username, "Tasks": tasks})
 }
 
 // ShowTask renders a task with given ID
 func ShowTask(ctx *gin.Context) {
-	userID := sessions.Default(ctx).Get("user")
-	info := ctx.Param("SessionInfo")
+	username := ctx.Param("UserName")
+
+	// parse ID given as a parameter
+	task_id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		Error(http.StatusBadRequest, err.Error())(ctx)
+		return
+	}
+	log.Println(task_id)
 
 	// Get DB connection
 	db, err := database.GetConnection()
@@ -153,21 +160,19 @@ func ShowTask(ctx *gin.Context) {
 
 	// Get a task with given ID
 	var task database.Task
-	base_query := "SELECT id, title, created_at, is_done FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ?"
-	err = db.Get(&task, base_query, userID) // Use DB#Get for one entry
+	err = db.Get(&task, "SELECT title, deadline, created_at, is_done, memo FROM tasks WHERE id=?", task_id) // Use DB#Get for one entry
 	if err != nil {
 		Error(http.StatusBadRequest, err.Error())(ctx)
 		return
 	}
 
 	// Render task
-	ctx.HTML(http.StatusOK, "task.html", gin.H{"SessionInfo": info, "Tasks": task})
+	ctx.HTML(http.StatusOK, "task.html", gin.H{"LoggedIn": true, "UserName": username, "Task": task})
 }
 
 func NewTaskForm(ctx *gin.Context) {
-	info := ctx.Param("SessionInfo")
-	log.Println(info)
-	ctx.HTML(http.StatusOK, "form_new_task.html", gin.H{"SessionInfo": info, "Title": "Task registration"})
+	username := ctx.Param("UserName")
+	ctx.HTML(http.StatusOK, "form_new_task.html", gin.H{"LoggedIn": true, "UserName": username, "Title": "Task registration"})
 }
 
 func RegisterTask(ctx *gin.Context) {
@@ -245,7 +250,7 @@ func UpdateTask(ctx *gin.Context) {
 }
 
 func EditTaskForm(ctx *gin.Context) {
-	info := ctx.Param("SessionInfo")
+	username := ctx.Param("UserName")
 	// ID の取得
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -267,7 +272,7 @@ func EditTaskForm(ctx *gin.Context) {
 	}
 	// Render edit form
 	ctx.HTML(http.StatusOK, "form_edit_task.html",
-		gin.H{"SessionInfo": info, "Title": fmt.Sprintf("Edit task %d", task.ID), "Task": task})
+		gin.H{"LoggedIn": true, "UserName": username, "Title": fmt.Sprintf("Edit task %d", task.ID), "Task": task})
 }
 
 func DeleteTask(ctx *gin.Context) {

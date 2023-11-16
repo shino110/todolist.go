@@ -2,13 +2,20 @@
 <h1>Task {{ .ID }}</h1>
 <dl>
     <dt>Title</dt>
-    <dd>{{ .Title }}</dd>
+    <dd>{{ .Task.Title }}</dd>
+    <dt>Deadline on</dt>
+    <dd>{{ if .Task.Deadline.Valid }}{{ .Task.Deadline }}
+        {{ else }}aaa
+        {{ end }}
+    </dd>
     <dt>Created at</dt>
-    <dd>{{ .CreatedAt }}</dd>
+    <dd>{{ .Task.CreatedAt }}</dd>
     <dt>Status</dt>
-    <dd><input type="checkbox" {{ if .IsDone }}checked {{ end }}disabled/>済</dd>
+    <dd><input type="checkbox" {{ if .Task.IsDone }}checked {{ end }}disabled/>済</dd>
     <dt>Memo</dt>
-    <dd>{{ .Memo }}</dd>
+    <dd>{{ if .Task.Memo.Valid }}{{ .Task.Memo.String }}
+        {{ end }}
+    </dd>
 </dl>
 <a href="/list"><button type="button">リストへ戻る</button></a>
 <a href="/task/edit/{{ .ID }}"><button type="button">編集</button></a>
