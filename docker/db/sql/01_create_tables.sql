@@ -21,6 +21,7 @@ CREATE TABLE `users` (
     `password`   binary(32) NOT NULL,
     `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `deleted`    boolean NOT NULL DEFAULT false,
     PRIMARY KEY (`id`)
 ) DEFAULT CHARSET=utf8mb4;
 
@@ -29,5 +30,6 @@ DROP TABLE IF EXISTS `ownership`;
 CREATE TABLE `ownership` (
     `user_id` bigint(20) NOT NULL,
     `task_id` bigint(20) NOT NULL,
+    `deleted` boolean    NOT NULL DEFAULT false,
     PRIMARY KEY (`user_id`, `task_id`)
 ) DEFAULT CHARSET=utf8mb4;

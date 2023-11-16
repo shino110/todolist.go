@@ -65,6 +65,15 @@ func main() {
 
 	engine.GET("/logout", service.Logout)
 
+	// ダッシュボードとユーザー設定
+	userGroup := engine.Group("/user")
+	userGroup.Use(service.LoginCheck)
+	{
+		engine.GET("/user/:id", service.DashboardForm)
+		engine.GET("/user/delete/:id", service.DeleteUser)
+		engine.GET("/user/delete_task/:id", service.DeleteTaskAll)
+	}
+
 	// start server
 	engine.Run(fmt.Sprintf(":%d", port))
 }

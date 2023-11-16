@@ -137,6 +137,7 @@ func LogoutForm(ctx *gin.Context) {
 }
 
 func CorrectUserCheck(ctx *gin.Context) {
+	// Deleted task also goes to login menu
 	// ID の取得
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -154,7 +155,7 @@ func CorrectUserCheck(ctx *gin.Context) {
 
 	// Get tasks in DB
 	var owner []database.Owner
-	err = db.Select(&owner, "SELECT * FROM ownership WHERE user_id = ? AND task_id = ? ", userid, id)
+	err = db.Select(&owner, "SELECT user_id, task_id FROM ownership WHERE user_id = ? AND task_id = ? AND deleted=false", userid, id)
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return

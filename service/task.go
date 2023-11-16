@@ -13,6 +13,10 @@ import (
 	database "todolist.go/db"
 )
 
+//all input datetime-local is initiallized with either of these values
+//const inputTimeMin := time.Date(1000, time.Month(time.January), 1, 0, 0, 0, 0, time.UTC)
+//const inputTimeMax := time.Date(9999, time.Month(time.December), 31, 23, 59, 0, 0, time.UTC)
+
 // 12000-12-12 00:00:00 <- input_min.Format("1000-01-01 00:00:00")
 // Formatが動いて欲しいように動かない
 func PutTimeinSQLdatetime(tm time.Time) string {
@@ -51,7 +55,8 @@ func DateTimeInput2Time(ctx *gin.Context, str string) time.Time {
 // TaskList renders list of tasks in DB
 func TaskList(ctx *gin.Context) {
 	userID := sessions.Default(ctx).Get("user")
-	username := ctx.Query("UserName")
+	inputTimeMin := time.Date(1000, time.Month(time.January), 1, 0, 0, 0, 0, time.UTC)
+	inputTimeMax := time.Date(9999, time.Month(time.December), 31, 23, 59, 0, 0, time.UTC)
 
 	// Get DB connection
 	db, err := database.GetConnection()
@@ -86,6 +91,9 @@ func TaskList(ctx *gin.Context) {
 	if deadline_start.Before(deadline_end) {
 		Error(http.StatusBadRequest, "Put appropriate datetime")
 	}
+	if deadline_start == inputTimeMin && deadline_end == inputTimeMax {
+		datetime_default = true
+	}
 
 	//set var done_selected and done_bool like func UpdateTask
 	done_selected := true
@@ -119,14 +127,17 @@ func TaskList(ctx *gin.Context) {
 		}
 		query = query + conditions[len(conditions)-1]
 	}
+	log.Println(query)
 
 	// Get tasks in DB
 	var tasks []database.Task
-	base_query := "SELECT id, title, deadline, created_at, is_done, memo FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ? "
+	base_query := "SELECT id, title, deadline, created_at, is_done, memo FROM tasks INNER JOIN ownership ON task_id = id WHERE user_id = ? AND deleted=false"
 	if len(conditions) > 0 && kw != "" {
 		err = db.Select(&tasks, base_query+" AND "+query+" AND title LIKE ? ", userID, "%"+kw+"%")
 	} else if kw != "" {
 		err = db.Select(&tasks, base_query+" AND title LIKE ? ", userID, "%"+kw+"%")
+	} else if len(conditions) > 0 {
+		err = db.Select(&tasks, base_query+" AND "+query, userID)
 	} else {
 		err = db.Select(&tasks, base_query, userID)
 	}
@@ -136,12 +147,13 @@ func TaskList(ctx *gin.Context) {
 		return
 	}
 	// Render tasks
-	ctx.HTML(http.StatusOK, "task_list.html", gin.H{"Title": "Task list", "LoggedIn": true, "UserName": username, "Tasks": tasks})
+	ctx.HTML(http.StatusOK, "task_list.html", gin.H{"Title": "Task list", "UserID": userID, "LoggedIn": true, "Tasks": tasks})
 }
 
 // ShowTask renders a task with given ID
 func ShowTask(ctx *gin.Context) {
-	username := ctx.Param("UserName")
+	//will not access to deleted task because of CorrectUserCheck() on user.go
+	userID := sessions.Default(ctx).Get("user") //will be used to access mypage
 
 	// parse ID given as a parameter
 	task_id, err := strconv.Atoi(ctx.Param("id"))
@@ -159,19 +171,19 @@ func ShowTask(ctx *gin.Context) {
 
 	// Get a task with given ID
 	var task database.Task
-	err = db.Get(&task, "SELECT * FROM tasks WHERE id=?", task_id) // Use DB#Get for one entry
+	err = db.Get(&task, "SELECT id, title, deadline, created_at, memo, is_done FROM tasks WHERE id=? ", task_id) // Use DB#Get for one entry
 	if err != nil {
 		Error(http.StatusBadRequest, err.Error())(ctx)
 		return
 	}
 
 	// Render task
-	ctx.HTML(http.StatusOK, "task.html", gin.H{"LoggedIn": true, "UserName": username, "Task": task})
+	ctx.HTML(http.StatusOK, "task.html", gin.H{"UserID": userID, "LoggedIn": true, "Task": task})
 }
 
 func NewTaskForm(ctx *gin.Context) {
-	username := ctx.Param("UserName")
-	ctx.HTML(http.StatusOK, "form_new_task.html", gin.H{"LoggedIn": true, "UserName": username, "Title": "Task registration"})
+	userID := sessions.Default(ctx).Get("user")
+	ctx.HTML(http.StatusOK, "form_new_task.html", gin.H{"UserID": userID, "LoggedIn": true, "Title": "Task registration"})
 }
 
 func RegisterTask(ctx *gin.Context) {
@@ -233,7 +245,7 @@ func UpdateTask(ctx *gin.Context) {
 		return
 	}
 	deadlineTime := DateTimeInput2Time(ctx, deadline)
-	initDateTime := time.Date(1000, time.Month(time.January), 1, 0, 0, 0, 0, time.UTC)
+	inputTimeMin := time.Date(1000, time.Month(time.January), 1, 0, 0, 0, 0, time.UTC)
 
 	memo, memo_written := ctx.GetPostForm("memo")
 	if !memo_written {
@@ -242,7 +254,7 @@ func UpdateTask(ctx *gin.Context) {
 	}
 
 	updateValues := "is_done=" + strconv.FormatBool(done_bool)
-	if deadlineTime.After(initDateTime) { //initial value changed 1000-01-01T00:00
+	if deadlineTime.After(inputTimeMin) { //initial value changed 1000-01-01T00:00
 		updateValues = updateValues + ", deadline='" + PutTimeinSQLdatetime(deadlineTime) + "'"
 	}
 	if memo != "" {
@@ -273,7 +285,7 @@ func UpdateTask(ctx *gin.Context) {
 }
 
 func EditTaskForm(ctx *gin.Context) {
-	username := ctx.Param("UserName")
+	userID := sessions.Default(ctx).Get("user")
 	// ID の取得
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -288,17 +300,18 @@ func EditTaskForm(ctx *gin.Context) {
 	}
 	// Get target task
 	var task database.Task
-	err = db.Get(&task, "SELECT * FROM tasks WHERE id=?", id)
+	err = db.Get(&task, "SELECT id, title, deadline, created_at, memo, is_done FROM tasks WHERE id=?", id)
 	if err != nil {
 		Error(http.StatusBadRequest, err.Error())(ctx)
 		return
 	}
 	// Render edit form
 	ctx.HTML(http.StatusOK, "form_edit_task.html",
-		gin.H{"LoggedIn": true, "UserName": username, "Title": fmt.Sprintf("Edit task %d", task.ID), "Task": task})
+		gin.H{"UserID": userID, "LoggedIn": true, "Title": fmt.Sprintf("Edit task %d", task.ID), "Task": task})
 }
 
 func DeleteTask(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get("user")
 	// ID の取得
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -311,18 +324,70 @@ func DeleteTask(ctx *gin.Context) {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
-	var task database.Task
-	err = db.Get(&task, "SELECT * FROM tasks")
-	if err != nil {
-		Error(http.StatusBadRequest, err.Error())(ctx)
-		return
-	}
-	// Delete the task from DB
-	_, err = db.Exec("DELETE FROM tasks WHERE id=?", id)
+	// change Delete flag
+	_, err = db.Exec("UPDATE ownership SET deleted=true WHERE task_id=? AND user_id=?", id, userID)
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
 	// Redirect to /list
 	ctx.Redirect(http.StatusFound, "/list")
+}
+
+func DeleteTaskAll(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get("user")
+	// Get DB connection
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	// change Delete flag
+	_, err = db.Exec("UPDATE ownership SET deleted=true WHERE user_id=?", userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	path := fmt.Sprintf("/user/%d", userID)
+	ctx.Redirect(http.StatusFound, path)
+}
+
+func DeleteUser(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get("user")
+	// Get DB connection
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	// change Delete flag
+	_, err = db.Exec("UPDATE ownership SET deleted=true WHERE user_id=?", userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	_, err = db.Exec("UPDATE users SET deleted=true WHERE id=?", userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	Logout(ctx) //erase session
+}
+
+func DashboardForm(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get("user")
+	var user database.User
+
+	// Get DB connection
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	err = db.Get(&user, "SELECT id, name FROM users WHERE id=?", userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	ctx.HTML(http.StatusFound, "dashboard.html", gin.H{"UserID": userID, "User": user, "LoggedIn": true})
 }

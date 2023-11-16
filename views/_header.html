@@ -10,7 +10,8 @@
 <body>
     <p style="text-align:right">
         {{if .LoggedIn}}
-        {{ .UserName}}<a href="/logout"><button type="button">ログアウト</button></a></li>
+        <a href="/user/{{ .UserID }}"><button type="button">マイページ</button></a>
+        <a href="/logout"><button type="button">ログアウト</button></a></li>
         {{else}}
         <a href="/login"><button type="button">ログイン</button></a></li>
         {{end}}
