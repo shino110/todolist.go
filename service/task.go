@@ -149,7 +149,6 @@ func ShowTask(ctx *gin.Context) {
 		Error(http.StatusBadRequest, err.Error())(ctx)
 		return
 	}
-	log.Println(task_id)
 
 	// Get DB connection
 	db, err := database.GetConnection()
@@ -160,7 +159,7 @@ func ShowTask(ctx *gin.Context) {
 
 	// Get a task with given ID
 	var task database.Task
-	err = db.Get(&task, "SELECT title, deadline, created_at, is_done, memo FROM tasks WHERE id=?", task_id) // Use DB#Get for one entry
+	err = db.Get(&task, "SELECT * FROM tasks WHERE id=?", task_id) // Use DB#Get for one entry
 	if err != nil {
 		Error(http.StatusBadRequest, err.Error())(ctx)
 		return
@@ -227,6 +226,30 @@ func UpdateTask(ctx *gin.Context) {
 		Error(http.StatusBadRequest, err.Error())(ctx)
 		return
 	}
+
+	deadline, deadline_selected := ctx.GetPostForm("deadline")
+	if !deadline_selected {
+		Error(http.StatusBadRequest, "Deadline not selected")(ctx) //should not happen
+		return
+	}
+	deadlineTime := DateTimeInput2Time(ctx, deadline)
+	initDateTime := time.Date(1000, time.Month(time.January), 1, 0, 0, 0, 0, time.UTC)
+
+	memo, memo_written := ctx.GetPostForm("memo")
+	if !memo_written {
+		Error(http.StatusBadRequest, "Deadline not selected")(ctx) //should not happen
+		return
+	}
+
+	updateValues := "is_done=" + strconv.FormatBool(done_bool)
+	if deadlineTime.After(initDateTime) { //initial value changed 1000-01-01T00:00
+		updateValues = updateValues + ", deadline='" + PutTimeinSQLdatetime(deadlineTime) + "'"
+	}
+	if memo != "" {
+		updateValues = updateValues + ", memo='" + memo + "'"
+	}
+	log.Println(updateValues)
+
 	// ID の取得
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -240,7 +263,7 @@ func UpdateTask(ctx *gin.Context) {
 		return
 	}
 	// Update data with given title on DB
-	if _, err := db.Exec("UPDATE tasks SET is_done=? WHERE id=?", done_bool, id); err != nil {
+	if _, err := db.Exec("UPDATE tasks SET "+updateValues+" WHERE id=?", id); err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}

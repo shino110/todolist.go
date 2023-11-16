@@ -1,15 +1,14 @@
 {{ template "header" . }}
-<h1>Task {{ .ID }}</h1>
+<h1>Task {{ .Task.ID }}</h1>
 <dl>
     <dt>Title</dt>
     <dd>{{ .Task.Title }}</dd>
     <dt>Deadline on</dt>
-    <dd>{{ if .Task.Deadline.Valid }}{{ .Task.Deadline }}
-        {{ else }}aaa
+    <dd>{{ if .Task.DeadLine.Valid }}{{ .Task.DeadLine.Time.Format "Jan 02, 2006 15:04" }}
         {{ end }}
     </dd>
     <dt>Created at</dt>
-    <dd>{{ .Task.CreatedAt }}</dd>
+    <dd>{{ .Task.CreatedAt.Format "Jan 02, 2006 15:04" }}</dd>
     <dt>Status</dt>
     <dd><input type="checkbox" {{ if .Task.IsDone }}checked {{ end }}disabled/>済</dd>
     <dt>Memo</dt>
@@ -18,6 +17,6 @@
     </dd>
 </dl>
 <a href="/list"><button type="button">リストへ戻る</button></a>
-<a href="/task/edit/{{ .ID }}"><button type="button">編集</button></a>
-<button type="button" onclick="confirm_delete({{ .ID }})">削除</button>
+<a href="/task/edit/{{ .Task.ID }}"><button type="button">編集</button></a>
+<button type="button" onclick="confirm_delete({{ .Task.ID }})">削除</button>
 {{ template "footer" }}

@@ -51,7 +51,7 @@ func main() {
 		taskGroup.POST("/new", service.RegisterTask)
 		// 既存タスクの編集
 		taskGroup.GET("/edit/:id", service.CorrectUserCheck, service.EditTaskForm)
-		taskGroup.POST("/edit/:id", service.CorrectUserCheck, service.NotImplemented)
+		taskGroup.POST("/edit/:id", service.CorrectUserCheck, service.UpdateTask)
 		// 既存タスクの削除
 		taskGroup.GET("/delete/:id", service.CorrectUserCheck, service.DeleteTask)
 	}
