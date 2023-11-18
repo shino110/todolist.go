@@ -91,7 +91,7 @@ func Login(ctx *gin.Context) {
 
 	// ユーザの取得
 	var user database.User
-	err = db.Get(&user, "SELECT id, name, password FROM users WHERE name = ?", username)
+	err = db.Get(&user, "SELECT id, name, password FROM users WHERE name = ? AND deleted=false", username)
 	if err != nil {
 		ctx.HTML(http.StatusBadRequest, "login.html", gin.H{"Title": "Login", "Username": username, "Error": "No such user"})
 		return
@@ -130,10 +130,6 @@ func Logout(ctx *gin.Context) {
 	session.Options(sessions.Options{MaxAge: -1})
 	session.Save()
 	ctx.Redirect(http.StatusFound, "/")
-}
-
-func LogoutForm(ctx *gin.Context) {
-	ctx.HTML(http.StatusOK, "logout.html", gin.H{"Title": "Task registration"})
 }
 
 func CorrectUserCheck(ctx *gin.Context) {

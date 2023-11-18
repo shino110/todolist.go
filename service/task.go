@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -127,7 +126,6 @@ func TaskList(ctx *gin.Context) {
 		}
 		query = query + conditions[len(conditions)-1]
 	}
-	log.Println(query)
 
 	// Get tasks in DB
 	var tasks []database.Task
@@ -260,7 +258,6 @@ func UpdateTask(ctx *gin.Context) {
 	if memo != "" {
 		updateValues = updateValues + ", memo='" + memo + "'"
 	}
-	log.Println(updateValues)
 
 	// ID の取得
 	id, err := strconv.Atoi(ctx.Param("id"))
@@ -371,7 +368,7 @@ func DeleteUser(ctx *gin.Context) {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
-	Logout(ctx) //erase session
+	ctx.Redirect(http.StatusFound, "/logout")
 }
 
 func DashboardForm(ctx *gin.Context) {
