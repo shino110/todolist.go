@@ -72,6 +72,8 @@ func main() {
 		engine.GET("/user/:id", service.DashboardForm)
 		engine.GET("/user/delete/:id", service.DeleteUser)
 		engine.GET("/user/delete_task/:id", service.DeleteTaskAll)
+		engine.GET("/user/newpassword", service.NewPasswordForm)
+		engine.POST("/user/newpassword", service.RegisterPassword)
 	}
 
 	// start server

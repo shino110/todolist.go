@@ -15,6 +15,10 @@ func NewUserForm(ctx *gin.Context) {
 	ctx.HTML(http.StatusOK, "new_user_form.html", gin.H{"Title": "Register user"})
 }
 
+func NewPasswordForm(ctx *gin.Context) {
+	ctx.HTML(http.StatusOK, "new_password_form.html", gin.H{"Title": "Change password", "ID": sessions.Default(ctx).Get(userkey)})
+}
+
 func hash(pw string) []byte {
 	const salt = "todolist.go#"
 	h := sha256.New()
@@ -70,6 +74,61 @@ func RegisterUser(ctx *gin.Context) {
 	id, _ := result.LastInsertId()
 	var user database.User
 	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ?", id)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	ctx.JSON(http.StatusOK, user)
+}
+
+func RegisterPassword(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get(userkey)
+
+	// フォームデータの受け取り
+	password_old := ctx.PostForm("password_old")
+	password := ctx.PostForm("password")
+	password_confirm := ctx.PostForm("password_confirm")
+	switch {
+	case password_old == "":
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Usernane is not provided", "Password_Old": password_old})
+		return
+	case password == "" || password_confirm == "":
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password is not provided", "Password": password})
+		return
+	}
+	if password != password_confirm {
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password does not match", "Password": password})
+		return
+	}
+
+	// DB 接続
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+
+	// old password check
+	var userNum int
+	err = db.Get(&userNum, "SELECT COUNT(*) FROM users WHERE id=? and password=?", userID, password_old)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	if userNum > 0 {
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": " Change password", "Error": "Incorrect Password", "ID": userID, "Password": password_old})
+		return
+	}
+	// DB への保存
+	_, err = db.Exec("UPDATE users SET password=? WHERE id=?", hash(password), userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+
+	// 保存状態の確認
+	var user database.User
+	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ?", userID)
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
