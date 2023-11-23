@@ -4,6 +4,7 @@
 <p><font color="#FF0000">{{ .Error }}</font><p>
 {{ end }}
 <form action="/user/new" method="POST">
+    パスワードは最低8文字でアルファベット大文字・小文字・数字をそれぞれ1文字以上入れてください<br>
     <label>ユーザ名: </label><input type="text" name="username" value="{{ .Username }}"required><br>
     <label>パスワード       : </label><input type="text" name="password" value="{{ .Password }}" required><br>
     <label>パスワード(確認用): </label><input type="text" name="password_confirm" value="{{ .Password }}" required><br>

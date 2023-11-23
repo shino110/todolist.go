@@ -125,6 +125,10 @@ func RegisterUser(ctx *gin.Context) {
 		return
 	}
 
+	if !passwordFirmChecker(ctx, "Register user", "new_user_form.html", password) {
+		return
+	}
+
 	// DB 接続
 	db, err := database.GetConnection()
 	if err != nil {
@@ -194,6 +198,10 @@ func RegisterPassword(ctx *gin.Context) {
 	}
 	if password != password_confirm {
 		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password does not match", "Password": password, "LoggedIn": true})
+		return
+	}
+
+	if !passwordFirmChecker(ctx, "Change password", "new_password_form.html", password) {
 		return
 	}
 

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -188,11 +189,12 @@ func RegisterTask(ctx *gin.Context) {
 	userID := sessions.Default(ctx).Get("user")
 
 	// Get task title
-	title, done_selected := ctx.GetPostForm("title")
-	if !done_selected {
+	title, exist := ctx.GetPostForm("title")
+	if !exist {
 		Error(http.StatusBadRequest, "No title is given")(ctx)
 		return
 	}
+	memo, exist := ctx.GetPostForm("memo")
 	// Get DB connection
 	db, err := database.GetConnection()
 	if err != nil {
@@ -201,7 +203,12 @@ func RegisterTask(ctx *gin.Context) {
 	}
 	// Create new data with given title on DB
 	tx := db.MustBegin()
-	result, err := tx.Exec("INSERT INTO tasks (title) VALUES (?)", title)
+	var result sql.Result
+	if exist {
+		result, err = tx.Exec("INSERT INTO tasks (title, memo) VALUES (?, ?)", title, memo)
+	} else {
+		result, err = tx.Exec("INSERT INTO tasks (title) VALUES (?)", title)
+	}
 	if err != nil {
 		tx.Rollback()
 		Error(http.StatusInternalServerError, err.Error())(ctx)
