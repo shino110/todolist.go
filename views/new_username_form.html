@@ -1,0 +1,12 @@
+{{ template "header" . }}
+<h1>User {{ .User.ID }}: {{ .User.Name }}</h1>
+<h2>ユーザー名変更</h2>
+{{ if .Error }}
+<p><font color="#FF0000">{{ .Error }}</font><p>
+{{ end }}
+<form action="/user/newpassword" method="POST">
+    <label>新ユーザー名       : </label><input type="text" name="username_new" value="{{ .NewUserName }}" required><br>
+    <label>現在のパスワード    : </label><input type="text" name="password" value="{{ .Password }}" required><br>
+    <input type="submit" value="登録">
+</form>
+{{ template "footer" }}

@@ -53,7 +53,7 @@ func main() {
 		taskGroup.GET("/edit/:id", service.CorrectUserCheck, service.EditTaskForm)
 		taskGroup.POST("/edit/:id", service.CorrectUserCheck, service.UpdateTask)
 		// 既存タスクの削除
-		taskGroup.GET("/delete/:id", service.CorrectUserCheck, service.DeleteTask)
+		taskGroup.GET("/delete/:id", service.DeleteTask)
 	}
 
 	// ユーザ登録
@@ -72,8 +72,10 @@ func main() {
 		engine.GET("/user/:id", service.DashboardForm)
 		engine.GET("/user/delete/:id", service.DeleteUser)
 		engine.GET("/user/delete_task/:id", service.DeleteTaskAll)
-		engine.GET("/user/newpassword", service.NewPasswordForm)
-		engine.POST("/user/newpassword", service.RegisterPassword)
+		engine.GET("/user/newpassword/:id", service.NewPasswordForm)
+		engine.POST("/user/newpassword/:id", service.RegisterPassword)
+		engine.GET("/user/newusername/:id", service.NewUserNameForm)
+		engine.POST("/user/newusername/:id", service.RegisterUserName)
 	}
 
 	// start server

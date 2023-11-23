@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
+	"regexp"
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -16,7 +18,37 @@ func NewUserForm(ctx *gin.Context) {
 }
 
 func NewPasswordForm(ctx *gin.Context) {
-	ctx.HTML(http.StatusOK, "new_password_form.html", gin.H{"Title": "Change password", "ID": sessions.Default(ctx).Get(userkey)})
+	userID := sessions.Default(ctx).Get(userkey)
+
+	var user database.User
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ?", userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	ctx.HTML(http.StatusOK, "new_password_form.html", gin.H{"Title": "Change password", "User": user, "LoggedIn": true})
+}
+
+func NewUserNameForm(ctx *gin.Context) {
+	userID := sessions.Default(ctx).Get(userkey)
+
+	var user database.User
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ?", userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	ctx.HTML(http.StatusOK, "new_username_form.html", gin.H{"Title": "Change Username", "User": user, "LoggedIn": true})
 }
 
 func hash(pw string) []byte {
@@ -25,6 +57,30 @@ func hash(pw string) []byte {
 	h.Write([]byte(salt))
 	h.Write([]byte(pw))
 	return h.Sum(nil)
+}
+
+func passwordFirmChecker(ctx *gin.Context, title string, html string, pwd string) bool {
+	if utf8.RuneCountInString(pwd) < 8 {
+		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "password is too short"})
+		return false
+	}
+	if !regexp.MustCompile(`[0-9]`).Match([]byte(pwd)) {
+		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "password must include at least one number: [0-9]"})
+		return false
+	}
+	if !regexp.MustCompile(`[a-z]`).Match([]byte(pwd)) {
+		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "password must include at least one lower-case alphabet: [a-z]"})
+		return false
+	}
+	if !regexp.MustCompile(`[A-Z]`).Match([]byte(pwd)) {
+		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "password must include at least one upper-case alphabet: [A-Z]"})
+		return false
+	}
+	return true
+}
+
+func check_regexp(reg, str string) {
+	regexp.MustCompile(reg).Match([]byte(str))
 }
 
 func RegisterUser(ctx *gin.Context) {
@@ -90,14 +146,14 @@ func RegisterPassword(ctx *gin.Context) {
 	password_confirm := ctx.PostForm("password_confirm")
 	switch {
 	case password_old == "":
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Usernane is not provided", "Password_Old": password_old})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Usernane is not provided", "Password_Old": password_old, "LoggedIn": true})
 		return
 	case password == "" || password_confirm == "":
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password is not provided", "Password": password})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password is not provided", "Password": password, "LoggedIn": true})
 		return
 	}
 	if password != password_confirm {
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password does not match", "Password": password})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password does not match", "Password": password, "LoggedIn": true})
 		return
 	}
 
@@ -107,7 +163,12 @@ func RegisterPassword(ctx *gin.Context) {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
-
+	var user database.User
+	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ?", userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
 	// old password check
 	var userNum int
 	err = db.Get(&userNum, "SELECT COUNT(*) FROM users WHERE id=? and password=?", userID, password_old)
@@ -116,7 +177,7 @@ func RegisterPassword(ctx *gin.Context) {
 		return
 	}
 	if userNum > 0 {
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": " Change password", "Error": "Incorrect Password", "ID": userID, "Password": password_old})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": " Change password", "Error": "Incorrect Password", "User": user, "LoggedIn": true})
 		return
 	}
 	// DB への保存
@@ -127,8 +188,75 @@ func RegisterPassword(ctx *gin.Context) {
 	}
 
 	// 保存状態の確認
-	var user database.User
 	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ?", userID)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	ctx.JSON(http.StatusOK, user)
+}
+
+func RegisterUserName(ctx *gin.Context) {
+	// フォームデータの受け取り
+	username_new := ctx.PostForm("username_new")
+	password := ctx.PostForm("password")
+	// ID の取得
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		Error(http.StatusBadRequest, err.Error())(ctx)
+		return
+	}
+	userid := sessions.Default(ctx).Get(userkey)
+
+	// Get DB connection
+	db, err := database.GetConnection()
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	var user database.User
+	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ?", userid)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+
+	// old password check
+	var userNum int
+	err = db.Get(&userNum, "SELECT COUNT(*) FROM users WHERE id=? and password=?", userid, password)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	if userNum > 0 {
+		ctx.HTML(http.StatusBadRequest, "new_username_form.html", gin.H{"Title": " Change password", "Error": "Incorrect Password", "User": user, "LoggedIn": true})
+		return
+	}
+	if username_new == "" {
+		ctx.HTML(http.StatusBadRequest, "new_username_form.html", gin.H{"Title": "title", "User": user, "Error": "input new username", "LoggedIn": true})
+		return
+	}
+
+	// 重複チェック
+	var duplicate int
+	err = db.Get(&duplicate, "SELECT COUNT(*) FROM users WHERE name=?", username_new) //復活のことも考えて、削除されたユーザーのユーザー名も弾く
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+	if duplicate > 0 {
+		ctx.HTML(http.StatusBadRequest, "new_user_form.html", gin.H{"Title": "Register user", "Error": "Username is already taken", "User": user, "LoggedIn": true})
+		return
+	}
+	// DB への保存
+	_, err = db.Exec("UPDATE users SET name=? WHERE id=?", username_new, userid)
+	if err != nil {
+		Error(http.StatusInternalServerError, err.Error())(ctx)
+		return
+	}
+
+	// 保存状態の確認
+	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ?", id)
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
