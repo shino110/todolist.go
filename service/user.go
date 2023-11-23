@@ -83,24 +83,20 @@ func password_sessionid_check(ctx *gin.Context, title string, html string, input
 	return true
 }
 
-func passwordFirmChecker(ctx *gin.Context, title string, html string, pwd string) bool {
+func passwordFirmChecker(pwd string) string {
 	if utf8.RuneCountInString(pwd) < 8 {
-		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "password is too short"})
-		return false
+		return "password is too short"
 	}
 	if !regexp.MustCompile(`[0-9]`).Match([]byte(pwd)) {
-		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "password must include at least one number: [0-9]"})
-		return false
+		return "password must include at least one number: [0-9]"
 	}
 	if !regexp.MustCompile(`[a-z]`).Match([]byte(pwd)) {
-		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "password must include at least one lower-case alphabet: [a-z]"})
-		return false
+		return "password must include at least one lower-case alphabet: [a-z]"
 	}
 	if !regexp.MustCompile(`[A-Z]`).Match([]byte(pwd)) {
-		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "password must include at least one upper-case alphabet: [A-Z]"})
-		return false
+		return "password must include at least one upper-case alphabet: [A-Z]"
 	}
-	return true
+	return ""
 }
 
 func check_regexp(reg, str string) {
@@ -124,8 +120,9 @@ func RegisterUser(ctx *gin.Context) {
 		ctx.HTML(http.StatusBadRequest, "new_user_form.html", gin.H{"Title": "Register user", "Error": "Password does not match", "Password": password})
 		return
 	}
-
-	if !passwordFirmChecker(ctx, "Register user", "new_user_form.html", password) {
+	err_str := passwordFirmChecker(password)
+	if err_str != "" {
+		ctx.HTML(http.StatusBadRequest, "new_user_form.html", gin.H{"Title": "Register user", "Error": err_str, "Password": password})
 		return
 	}
 
@@ -190,18 +187,20 @@ func RegisterPassword(ctx *gin.Context) {
 	//input check
 	switch {
 	case password_old == "":
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Usernane is not provided", "Password_Old": password_old, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Usernane is not provided", "User": user, "Password_Old": password_old, "LoggedIn": true})
 		return
 	case password == "" || password_confirm == "":
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password is not provided", "Password": password, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password is not provided", "User": user, "Password": password, "LoggedIn": true})
 		return
 	}
 	if password != password_confirm {
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password does not match", "Password": password, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password does not match", "User": user, "Password": password, "LoggedIn": true})
 		return
 	}
 
-	if !passwordFirmChecker(ctx, "Change password", "new_password_form.html", password) {
+	err_str := passwordFirmChecker(password)
+	if err_str != "" {
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": err_str, "User": user, "LoggedIn": true})
 		return
 	}
 
