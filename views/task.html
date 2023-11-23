@@ -1,17 +1,17 @@
 {{ template "header" . }}
 <h1>Task {{ .Task.ID }}</h1>
 <dl>
-    <dt>Title</dt>
+    <dt>タイトル</dt>
     <dd>{{ .Task.Title }}</dd>
-    <dt>Deadline on</dt>
+    <dt>締め切り日時</dt>
     <dd>{{ if .Task.DeadLine.Valid }}{{ .Task.DeadLine.Time.Format "Jan 02, 2006 15:04" }}
         {{ end }}
     </dd>
-    <dt>Created at</dt>
+    <dt>登録日</dt>
     <dd>{{ .Task.CreatedAt.Format "Jan 02, 2006 15:04" }}</dd>
-    <dt>Status</dt>
+    <dt>状態</dt>
     <dd><input type="checkbox" {{ if .Task.IsDone }}checked {{ end }}disabled/>済</dd>
-    <dt>Memo</dt>
+    <dt>メモ</dt>
     <dd>{{ if .Task.Memo.Valid }}{{ .Task.Memo.String }}
         {{ end }}
     </dd>

@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -382,12 +381,12 @@ func DashboardForm(ctx *gin.Context) {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
-	log.Println("here")
 	err = db.Get(&user, "SELECT id, name FROM users WHERE id=?", userID)
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
-	log.Println(userID)
 	ctx.HTML(http.StatusFound, "dashboard.html", gin.H{"UserID": userID, "User": user, "LoggedIn": true})
+	// path := fmt.Sprintf("/user/%d", userID)
+	// ctx.Redirect(http.StatusFound, path)
 }

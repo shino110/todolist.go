@@ -1,15 +1,15 @@
 {{ template "header" . }}
 <h1>Task {{ .Task.ID }}: edit</h1>
 <form action="/task/edit/{{ .Task.ID }}" method="POST">
-    <label>Title</label><br>
+    <label>タイトル</label><br>
     <input type="text" name="title" value="{{ .Task.Title }}" required>
     <br>
-    <label>DeadLine</label>
+    <label>締め切り日時</label>
     <input type="datetime-local" name="deadline" value="1000-01-01T00:00" style="width:auto"/>
     <br>
-    <label>Created at</label><textarea name="createdAt" rows="1" readonly>{{ .Task.CreatedAt.Format "Jan 02, 2006 15:04" }}</textarea>
+    <label>登録日</label><textarea name="createdAt" rows="1" readonly>{{ .Task.CreatedAt.Format "Jan 02, 2006 15:04" }}</textarea>
     <br>
-    <label>Memo</label><br>
+    <label>メモ</label><br>
     <textarea name="memo" row="2" cols="20"></textarea><br>
     <input type="radio" name="is_done" value="t" {{ if .Task.IsDone }}checked{{ end }}><label>完了</label>
     <input type="radio" name="is_done" value="f" {{ if not .Task.IsDone }}checked{{ end }}><label>未完了</label>

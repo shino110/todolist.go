@@ -72,10 +72,10 @@ func main() {
 		engine.GET("/user/:id", service.DashboardForm)
 		engine.GET("/user/delete/:id", service.DeleteUser)
 		engine.GET("/user/delete_task/:id", service.DeleteTaskAll)
-		engine.GET("/user/newpassword/:id", service.NewPasswordForm)
-		engine.POST("/user/newpassword/:id", service.RegisterPassword)
-		engine.GET("/user/newusername/:id", service.NewUserNameForm)
-		engine.POST("/user/newusername/:id", service.RegisterUserName)
+		engine.GET("/user/newpassword", service.NewPasswordForm)
+		engine.POST("/user/newpassword", service.RegisterPassword)
+		engine.GET("/user/newusername", service.NewUserNameForm)
+		engine.POST("/user/newusername", service.RegisterUserName)
 	}
 
 	// start server

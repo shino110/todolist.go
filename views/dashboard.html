@@ -2,8 +2,8 @@
 <h1>User {{ .User.ID }}: {{ .User.Name }}</h1>
 <h2>設定</h2>
 <ul>
-    <li><a href="/user/newusername/{{ .User.ID }}"><button type="button">ユーザー名変更</button></a>
-    <li><a href="/user/newpassword/{{ .User.ID }}"><button type="button">パスワード変更</button></a>
+    <li><a href="/user/newusername"><button type="button">ユーザー名変更</button></a>
+    <li><a href="/user/newpassword"><button type="button">パスワード変更</button></a>
     <li><button type="button" onclick="confirm_deleteAll({{ .User.ID }})">登録済みタスク一括消去</button></li>
     <li><button type="button" onclick="confirm_deleteUser({{ .User.ID }})">アカウントの削除</button></li>
 </ul>
