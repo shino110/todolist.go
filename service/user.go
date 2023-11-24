@@ -31,7 +31,7 @@ func NewPasswordForm(ctx *gin.Context) {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
-	ctx.HTML(http.StatusOK, "new_password_form.html", gin.H{"Title": "Change password", "User": user, "LoggedIn": true})
+	ctx.HTML(http.StatusOK, "new_password_form.html", gin.H{"Title": "Change password", "User": user, "LoggedIn": true, "UserID": user.ID})
 }
 
 func NewUserNameForm(ctx *gin.Context) {
@@ -48,7 +48,7 @@ func NewUserNameForm(ctx *gin.Context) {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
 		return
 	}
-	ctx.HTML(http.StatusOK, "new_username_form.html", gin.H{"Title": "Change password", "User": user, "LoggedIn": true})
+	ctx.HTML(http.StatusOK, "new_username_form.html", gin.H{"Title": "Change password", "User": user, "LoggedIn": true, "UserID": user.ID})
 }
 
 func hash(pw string) []byte {
@@ -72,7 +72,7 @@ func password_sessionid_check(ctx *gin.Context, title string, html string, input
 	}
 	err = db.Get(&user, "SELECT id, name, password FROM users WHERE id = ? AND deleted=false", userID)
 	if err != nil {
-		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "No such user", "User": user, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, html, gin.H{"Title": title, "Error": "No such user", "User": user, "LoggedIn": true, "UserID": user.ID})
 		return false
 	}
 
@@ -187,20 +187,20 @@ func RegisterPassword(ctx *gin.Context) {
 	//input check
 	switch {
 	case password_old == "":
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Usernane is not provided", "User": user, "Password_Old": password_old, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Usernane is not provided", "User": user, "Password_Old": password_old, "LoggedIn": true, "UserID": user.ID})
 		return
 	case password == "" || password_confirm == "":
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password is not provided", "User": user, "Password": password, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password is not provided", "User": user, "Password": password, "LoggedIn": true, "UserID": user.ID})
 		return
 	}
 	if password != password_confirm {
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password does not match", "User": user, "Password": password, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": "Password does not match", "User": user, "Password": password, "LoggedIn": true, "UserID": user.ID})
 		return
 	}
 
 	err_str := passwordFirmChecker(password)
 	if err_str != "" {
-		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": err_str, "User": user, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_password_form.html", gin.H{"Title": "Change password", "Error": err_str, "User": user, "LoggedIn": true, "UserID": user.ID})
 		return
 	}
 
@@ -241,7 +241,7 @@ func RegisterUserName(ctx *gin.Context) {
 	}
 
 	if username_new == "" {
-		ctx.HTML(http.StatusBadRequest, "new_username_form.html", gin.H{"Title": "title", "User": user, "Error": "input new username", "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_username_form.html", gin.H{"Title": "title", "User": user, "Error": "input new username", "LoggedIn": true, "UserID": user.ID})
 		return
 	}
 
@@ -253,7 +253,7 @@ func RegisterUserName(ctx *gin.Context) {
 		return
 	}
 	if duplicate > 0 {
-		ctx.HTML(http.StatusBadRequest, "new_username_form.html", gin.H{"Title": "Register user", "Error": "Username is already taken", "User": user, "LoggedIn": true})
+		ctx.HTML(http.StatusBadRequest, "new_username_form.html", gin.H{"Title": "Register user", "Error": "Username is already taken", "User": user, "LoggedIn": true, "UserID": user.ID})
 		return
 	}
 	// DB への保存

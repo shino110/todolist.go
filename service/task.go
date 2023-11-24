@@ -365,11 +365,6 @@ func DeleteUser(ctx *gin.Context) {
 		return
 	}
 	// change Delete flag
-	_, err = db.Exec("UPDATE ownership SET deleted=true WHERE user_id=?", userID)
-	if err != nil {
-		Error(http.StatusInternalServerError, err.Error())(ctx)
-		return
-	}
 	_, err = db.Exec("UPDATE users SET deleted=true WHERE id=?", userID)
 	if err != nil {
 		Error(http.StatusInternalServerError, err.Error())(ctx)
